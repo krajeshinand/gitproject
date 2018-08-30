@@ -1,0 +1,300 @@
+Logs:
+
+B2F
+====
+T24:
+IF.EVENTS.INTERFACE.TABLE
+
+TTI:
+/tap/mvpdev1tti>
+/tap/mvpdev1tti/log 
+error.log
+monitor.log
+
+GateWayPack:
+/tap/dev/gwp/current/output_processed>
+
+F2B
+====
+GateWayPack:
+/tap/dev/gwp/current/xml_msg>
+
+TTI:
+/tap/mvpdev1tti>
+/tap/mvpdev1tti/log 
+error.log
+monitor.log
+
+
+cd /
+
+
+=====================
+B2F - IF (jms or mq)
+F2B - T24 Outbound adaptar (ofsml)
+
+	T24
+	 |
+{   TTI
+Bar files - Broker archival file (IIB)
+
+T24-JMS.bar
+	|
+Configurable Services (in IIB)
+T24Jboss service
+	|
+T24-TTI.bar
+}
+	|
+ Gateway Pack
+(inter-linked)
+   TAP
+   
+Translation / Gateway / TTI:
+----------------------------
+Custom
+MB
+Core
+
+
+----
+Create event & Flow via Design studio 
+IF.INTEGRATION.FLOW.CATALOG	- xml schema XSD  
+
+Repository :
+===TTI Deliverable==== will be provided by temenos
+Events
+Flow
+----
+
+T24:
+IF.INTEGRATION.FLOW.CATALOG
+---------------------------
+>> IF service converts the t24 msg to xml based on xsd and keep in 
+IF.EVENTS.INTERFACE.TABLE & post to jms queue (IF.INTEGRATION.SERVICE.PARAM) 
+>> Join - to extract field from another appl. SEC.OPEN.ORDER>SECURITY.NO>SECURITY.MASTER>SUB.ASSET.TYPE
+
+Gateway Pack
+------------
+/tap/dev/gwp/current/scripts/
+
+TTI creates sequence number based on T24 creation time. There are logic based on sequence number in TAP.
+
+
+Trace (log) log by steps: (ALWAYS IN SAME SERVER)
+-------------------------------------------------
+MSG IN
+PRE FILTER (by filter xslt - core / custo)
+POST FILTER (by map xslt - core / custo)
+POST MAP (Transformation postbatchprocess.xsl / postofsprocess.xsl)
+MSG OUT (Gateway pack)
+
+xslt's :
+--------
+GlobalTemplate-core.xsl
+GlobalTemplate-custo.xsl   (always do L3 changes on custo only)
+GlobalTemplate-filter-core.xsl
+GlobalTemplate-filter-custo.xsl
+GlobalTemplate-filer.xsl
+GlobalTemplate.xsl
+
+
+
+
+MQSI 10.0.0.8
+/tap/IBM/iib-10.0.0.8/server
+mqm@HKLVAUAPP012[bin] $ cd /tap/dev1
+
+mqm@HKLVAUAPP012[dev1] $ ls
+backup  emptyxml  mqmsg1.txt        services     trace       xslt3
+bar     gkr       OMS               t24hkft.xml  trace_old   xsltbkp
+bck     IB        output            test1        ttichanges
+config  log       queueDefinitions  text2        xslt
+mqm@HKLVAUAPP012[dev1] $
+
+config folder has implementation configuration files,
+
+mqm@HKLVAUAPP012[config] $ ls
+aa-routing.xml   multi-routing.xml  stmt-routing.xml  (transaction code & xslt config)
+tti-routing.xml (ONLY ONE JMS QUEUE CAN BE CONFIGURED)
+file.properties  par                tti-config.xml - (EVENT & FLOW, MAIN CONFIG FILE)
+input            properties         tti-flowmap.xml
+
+IF events for TTI are application wise & not version based. Hence, Event trigger for all companies. 
+
+We can have multiple nodes. 1 Node is one TTI instance.
+
+jms to TTI secured connection config ? Might be in JNDI connection factory level. 
+
+Customization:
+
+1. Add new field -> Add new field in IF Event & Publish
+2. Modify new field value
+
+global template is place holder for all templates & variables
+
+GlobalTemplate-core.xsl
+GlobalTemplate-custo.xsl   (always do L3 changes on custo only)
+GlobalTemplate-filter-core.xsl
+GlobalTemplate-filter-custo.xsl
+GlobalTemplate-filer.xsl
+GlobalTemplate.xsl
+
+xml editor - xml spy, stylus studio 
+----------------------
+
+mqsilist
+mqsistop T24_TTI5_NODE
+
+persistant queue - mq.
+jms is non-persistant queue
+----------------------
+
+xslt
+2 parts,
+- Filter
+- Transformation
+
+
+
+Filter Sequence:
+Scenario 1:
+1. Custo
+2. Core
+
+Scenario 2: (recommended)
+1. Custo >>> Incase of topup filter, copy the core filter and customize it. 
+
+Workshop:
+---------
+1. Modify value in flow
+2. add New field mapping in flow  --> template userdefined field
+
+Steps:
+1. Amend CustomerCusto.xsl
+2. Restart node --> mqsilist, mqsistop <node name>, mqsistart <node name>
+3. Config UD field in UDF_Attfile.att. a
+Add new field with a space Thirdparty field
+
+tapuser@HKLVADAPP206:/tap/dev/gwp/current/config> ls
+Active_Global_Set_Lines_F2B.txt  GWPACK_Master_BatchControl.xml
+Active_Global_Set_Lines.txt      GWPACK_Master_Batch.xml
+Basic_Attfile.att                GWPACK_Master_F2B.xml
+Basic_Attfile_F2B.att            GWPACK_Master_Online.xml
+Global_Set_Lines_F2B.set         GWPACK_Registry.mrc
+Global_Set_Lines.set             GWPACK_Registry.mrn
+GWPACK.cfg                       GWPACK_ScCleaner.xslt
+GWPACK_Debug.cfg                 GWPACK_Subscription_Query.ORACLE.cfg
+GWPACK_ExtImport_Batch.xml       GWPACK_Subscription_Query.SYBASE.cfg
+GWPACK_ExtImport_Online.xml      imdiAttfile.att
+GWPACK_F2B_Codif.cfg             MB_Attfile.att
+GWPACK_F2B.mdq                   Subscription_Attfile.att
+GWPACK_Index.cfg                 Subscription_Attfile.run.att
+GWPACK_KWMC.xml                  UDF_Attfile.att
+GWPACK_log4j.xml                 UDF_Attfile_F2B.att
+
+4. GWPACK restart
+
+5. Create sqlname new field in TAP
+
+6. Amend customer in T24. Check IF.EVENT.LOG
+
+7. check log in GWPACK,
+
+tapuser@HKLVADAPP206:/tap/dev/gwp/current> ls
+archive                             log                   statistic
+batch_import                        mapaudit              systems
+config                              mapaudit_processed    systems_mmc
+config.bkup                         maplog                testfiles
+data                                maps                  tmp
+database                            menu                  tools
+debug                               online_import         xml
+distribindep                        output                xml_batch
+extimport_batch                     output_processed      xml_f2b
+extimport_online                    output_report         xml_f2b_mm_fx
+function                            output_xml            xml_msg
+gwpack_3.0_20170717_8.4.1.3.tar.gz  output_xml_processed  xml_not_processed
+GWPACK_Install.sh                   parsed_import         xml_online
+import                              reload_imdi_output    xml_online.disabled
+installation                        reload_output         xml_xslt
+lib                                 scripts
+
+--------------------------------------------------------------------------------------------------------
+
+Front to back:
+==============
+
+service in TAP
+daemon in gateway pack
+
+subscription triggers map & transform xml in to gateway pack xml_msg  <<< file (xml_msg) (or) queue >>>
+
+Postmap - would have actual ofsml message
+eventstatus goes back to tap
+
+t24 adaptar config - synchronous or asynchronous
+
+
+Workshop:
+--------
+TAP:
+1. New field ---------> Create sql field & New UDF.Att in GWP
+2. Exisiting value amend 
+
+T24:
+LRF - Create
+Existing - 
+
+TTI:
+- Identify field & flow
+- Custo
+- validation-unit
+- Deployment
+- validation-integration
+
+F2B there are no filters. All filter remains in master xsl.
+
+Naming conventions:
+-------------------
+
+IF:
+1. Event id
+2. Flow name
+
+flow name & xslt name should be same
+
+One flow may have more than 1 xslt,
+- The mapping exist in tti-flowmap.xml (inside config)
+
+
+1. Change Mgmt   (pim) CCUSER - 2 USERS  ===> MANUAL STEPS, PROOF & PUBLISH
+===> JSHELL QUERIES
+
+2. PSS.SUPPORT -  role 
+PSS <S E L P>
+-------------------------------
+
+3. Seperate COB operator
+Operations
+-------------------------------
+
+HUSA
+4. HUSA user mgmt. 
+---------------------------------------
+
+===========================*============================
+	
+1. HUSA User Management 
+2. COB Operations 
+3. PSS Role - Support role, Change Control role
+
+----------------------------------------------------------------
+
+ACCOUNT.PARAMETER
+VERSION.CONTROL
+TAX Subroutine in TAX records (GST, ZERO & EXEMPT)
+TAX.TYPE.CONDITION (GST - ensure the tax code is defined in the TAX field. This was incorrectly setup in 107 server)
+TAX.DETAILS in TAX record to Yes
+
+INF130 - 2018-08-06 23:34:06.455 - WSC_MVPDEV1BRK1 - TTIServer - MultiStockExchange - a1add777-37a9-4401-861c-04a79fe261e9 - Message transformed by StockExchange-Map.xsl was put on the queue /TEMENOS/TTI/XML_B2F
+
